@@ -1,10 +1,40 @@
 local M = {}
+local json = require("json")
+local uv = vim.loop
+
+function M.read_file(path, callback)
+	uv.fs_open(path, "r", 438, function(err, fd)
+		assert(not err, err)
+		uv.fs_fstat(fd, function(err, stat)
+			assert(not err, err)
+			uv.fs_read(fd, stat.size, 0, function(err, data)
+				assert(not err, err)
+				uv.fs_close(fd, function(err)
+					assert(not err, err)
+					return callback(data)
+				end)
+			end)
+		end)
+	end)
+end
 
 function M.encode(message)
+	message = json.encode(message)
 	local len = string.len(message)
 
 	return "Content-Length: " .. tostring(len) .. "\r\n\r\n" .. message
 end
+
+-- function M.decode(message, callback)
+-- 	local _, _, len, data = string.find(message, "^Content%-Length: (%d+)\r\n\r\n(.*)$")
+
+-- 	if len == nil or tonumber(len) < string.len(data) then
+-- 		callback(message)
+-- 		error("bad input: " .. message)
+-- 	end
+
+-- 	return json.decode(string.sub(data, 1, tonumber(len)))
+-- end
 
 function M.initialize(uri, process_id)
 	return {

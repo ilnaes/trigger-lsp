@@ -1,7 +1,7 @@
 local utils = require("utils")
 local stub = require("luassert.stub")
 
-describe("Test example", function()
+describe("Test utils", function()
 	it("Should find dir", function()
 		stub(vim.api, "nvim_buf_get_name")
 		vim.api.nvim_buf_get_name.returns(os.getenv("PWD") .. "/lua/lsp.lua")
@@ -30,8 +30,15 @@ describe("Test example", function()
 	end)
 
 	it("Should count correctly", function()
-		local message = utils.encode("ASD")
-		assert.are.same("Content-Length: 3\r\n\r\nASD", message)
+		local message = utils.encode({ a = 1 })
+		assert.are.same('Content-Length: 7\r\n\r\n{"a":1}', message)
+	end)
+
+	it("Should decode correctly", function()
+		local data = utils.encode({ a = 1 })
+		local message = utils.decode(data)
+
+		assert.are.same(1, message.a)
 	end)
 
 	-- it("Should get ft", function()
