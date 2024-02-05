@@ -1,31 +1,18 @@
+local queue = require("queue")
+local diagnostics = require("diagnostics")
 local uv = vim.loop
 local encode = require("utils").encode
 local json = require("json")
 local decoder = require("decoder")
 local utils = require("utils")
-local queue = require("queue")
-local diagnostics = require("diagnostics")
 
 local progs = {
 	lua = "lua-language-server",
 }
 
-local clients = {}
-local versions = {}
-
 --- Generates a unique name for a buffer
 --- given by the project root and the program
 ---@param bufnr integer buffer number
-local function get_client_name(bufnr)
-	local root = utils.find_root(bufnr)
-	local ft = vim.api.nvim_get_option_value("filetype", { buf = bufnr })
-
-	if root == "" or progs[ft] == nil then
-		return ""
-	else
-		return root .. ":" .. progs[ft]
-	end
-end
 
 local lsp = {}
 function lsp:send(message, notification)
@@ -93,7 +80,7 @@ function lsp:process_input(data)
 end
 
 function lsp:new(bufnr, ns)
-	local name = get_client_name(bufnr)
+	local name = self.get_client_name(bufnr)
 	local obj = {
 		idx = 1,
 		name = name,
@@ -107,7 +94,7 @@ function lsp:new(bufnr, ns)
 	return setmetatable(obj, self)
 end
 
-function lsp:start(bufnr)
+function lsp:start()
 	self.stdin = uv.new_pipe()
 	self.stdout = uv.new_pipe()
 	self.logfile = uv.fs_open("log", "w", 438)
@@ -127,60 +114,17 @@ function lsp:start(bufnr)
 	end)
 
 	self:send_init()
-	local filename = vim.fn.fnamemodify(vim.api.nvim_buf_get_name(bufnr), ":p")
-
-	utils.read_file(filename, function(data)
-		self.q:push({
-			payload = {
-				method = "textDocument/didOpen",
-				params = {
-					uri = "file://" .. filename,
-					version = 1,
-					languageId = "lua",
-					text = data,
-				},
-			},
-			notification = true,
-		})
-		self:flush()
-	end)
 end
 
-local M = {}
+function lsp.get_client_name(bufnr)
+	local root = utils.find_root(bufnr)
+	local ft = vim.api.nvim_get_option_value("filetype", { buf = bufnr })
 
-function M.start_lsp(bufnr, ns)
-	local name = get_client_name(bufnr)
-	if clients[name] == nil then
-		local client = lsp:new(0, ns)
-		clients[name] = client
-		client:start(bufnr)
-		versions[bufnr] = 2
+	if root == "" or progs[ft] == nil then
+		return ""
+	else
+		return root .. ":" .. progs[ft]
 	end
 end
 
-function M.send_changes(bufnr)
-	local name = get_client_name(bufnr)
-	local client = clients[name]
-	local filename = vim.fn.fnamemodify(vim.api.nvim_buf_get_name(bufnr), ":p")
-
-	utils.read_file(filename, function(data)
-		client.q:push({
-			payload = {
-				method = "textDocument/didChange",
-				params = {
-					textDocument = {
-						uri = "file://" .. filename,
-						version = versions[bufnr],
-					},
-					contentChanges = { { text = data } },
-				},
-			},
-			notification = true,
-		})
-		client:flush()
-
-		versions[bufnr] = versions[bufnr] + 1
-	end)
-end
-
-return M
+return lsp

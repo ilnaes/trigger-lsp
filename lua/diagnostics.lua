@@ -24,11 +24,13 @@ function M.show_diagnostics(params, ns)
 	vim.schedule(function()
 		local filepath = string.sub(params.uri, 8)
 		local bufnr = vim.fn.bufnr(filepath)
-		local diagnostics = M.get_diagnostics(params.diagnostics, bufnr)
+		if bufnr ~= -1 then
+			local diagnostics = M.get_diagnostics(params.diagnostics, bufnr)
 
-		vim.diagnostic.set(ns, bufnr, diagnostics, {
-			virtual_text = true,
-		})
+			vim.diagnostic.set(ns, bufnr, diagnostics, {
+				virtual_text = true,
+			})
+		end
 	end)
 end
 

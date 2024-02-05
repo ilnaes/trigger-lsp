@@ -1,21 +1,8 @@
 local M = {}
 local json = require("json")
-local uv = vim.loop
 
-function M.read_file(path, callback)
-	uv.fs_open(path, "r", 438, function(err, fd)
-		assert(not err, err)
-		uv.fs_fstat(fd, function(err, stat)
-			assert(not err, err)
-			uv.fs_read(fd, stat.size, 0, function(err, data)
-				assert(not err, err)
-				uv.fs_close(fd, function(err)
-					assert(not err, err)
-					return callback(data)
-				end)
-			end)
-		end)
-	end)
+function M.read_buffer(bufnr)
+	return table.concat(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false))
 end
 
 function M.encode(message)
